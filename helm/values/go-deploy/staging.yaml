@@ -1,0 +1,9 @@
+app:
+  environment: staging
+
+  env:
+    # -- Frontend (IFRC GO)
+    ADDITIONAL_TRUSTED_ORIGINS: "https://go-stage.ifrc.org"
+    # -- Sentry
+    SENTRY_TRACES_SAMPLE_RATE: "0.5"
+    SENTRY_PROFILE_SAMPLE_RATE: "0.5"

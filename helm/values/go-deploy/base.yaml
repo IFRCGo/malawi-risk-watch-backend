@@ -1,0 +1,58 @@
+app:
+  fullnameOverride: malawi-risk-watch
+
+  podLabels:
+    azure.workload.identity/use: "true"
+
+  api:
+    ingress:
+      enabled: true
+      tls:
+        enabled: true
+
+
+  env:
+    USE_AZURE_STORAGE: "true"
+    # -- Sentry
+    SENTRY_ENABLED: "true"
+    # -- JBA (SFTP)
+    JBA_SFTP_ENABLED: "true"
+    JBA_SFTP_URL: "sftp.floodforesight.com"
+    # -- ARC (S3 ingestion)
+    ARC_INGESTION_ENABLED: "true"
+    # -- Email
+    EMAIL_BACKEND: "utils.email.base.ApiEmailBackend"
+    DEFAULT_FROM_EMAIL: DEFAULT-FROM-EMAIL
+
+  serviceAccountName: "service-token-reader"
+  serviceAccount:
+    create: true
+    automountServiceAccountToken: true
+    labels:
+      azure.workload.identity/use: "true"
+
+  secretsStoreCsiDriver:
+    create: true
+    provider: azure
+    parameters:
+      usePodIdentity: "false"
+    secretsKeyMap:
+      DJANGO_SECRET_KEY: DJANGO-SECRET-KEY
+      # -- Misc
+      SENTRY_DSN: SENTRY-DSN
+      # -- Email
+      EMAIL_API_URL: EMAIL-API-URL
+      EMAIL_API_KEY: EMAIL-API-KEY
+      # -- JBA
+      JBA_SFTP_PASSWORD: JBA-SFTP-PASSWORD
+      # -- ARC
+      ARC_AWS_ACCESS_KEY_ID: ARC-AWS-ACCESS-KEY-ID
+      ARC_AWS_SECRET_ACCESS_KEY: ARC-AWS-SECRET-ACCESS-KEY
+      # -- DB
+      POSTGRES_DB: POSTGRES-DB
+      POSTGRES_HOST: POSTGRES-HOST
+      POSTGRES_USER: POSTGRES-USER
+      POSTGRES_PASSWORD: POSTGRES-PASSWORD
+      POSTGRES_PORT: POSTGRES-PORT
+      # -- Storage
+      AZURE_STORAGE_CONNECTION_STRING: AZURE-STORAGE-CONNECTION-STRING

@@ -1,0 +1,26 @@
+app:
+  api:
+    ingress:
+      host: malawi-rw-api.example.com
+      tls:
+        secretName: malawi-rw-api-example-cert
+
+  # Dummy values for snapshot rendering only — real per-environment values are
+  # supplied at deploy time (go-deploy). No `secrets:` here: with the Secrets Store
+  # CSI driver enabled the chart renders no Secret of its own, the vault supplies them.
+  env:
+    APP_DOMAIN: https://malawi-rw-api.example.com
+    SESSION_COOKIE_DOMAIN: .example.com
+    CSRF_COOKIE_DOMAIN: .example.com
+    AZURE_STORAGE_MEDIA_CONTAINER: media
+    AZURE_STORAGE_STATIC_CONTAINER: static
+
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: 00000000-0000-0000-0000-000000000000
+
+  secretsStoreCsiDriver:
+    parameters:
+      clientID: 00000000-0000-0000-0000-000000000000
+      keyvaultName: malawi-rw-example-kv
+      tenantId: 11111111-1111-1111-1111-111111111111

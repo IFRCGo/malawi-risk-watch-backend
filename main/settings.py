@@ -65,10 +65,10 @@ env = environ.Env(
     AWS_S3_MEDIA_BUCKET_NAME=str,
     AWS_S3_STATIC_BUCKET_NAME=str,
     # -- Azure blob storage
-    AZURE_BLOB_ENABLED=(bool, False),
-    AZURE_BLOB_CONNECTION_STRING=str,
-    AZURE_BLOB_MEDIA_CONTAINER_NAME=str,
-    AZURE_BLOB_STATIC_CONTAINER_NAME=str,
+    USE_AZURE_STORAGE=(bool, False),
+    AZURE_STORAGE_MEDIA_CONTAINER=str,  # media
+    AZURE_STORAGE_STATIC_CONTAINER=str,  # static
+    AZURE_STORAGE_CONNECTION_STRING=str,
     # -- Filesystem (default) XXX: Don't use in production?
     MEDIA_ROOT=(str, BASE_DIR / ".data/media"),
     STATIC_ROOT=(str, BASE_DIR / ".data/static"),
@@ -332,9 +332,9 @@ if env("AWS_S3_ENABLED"):
         },
     }
 
-elif env("AZURE_BLOB_ENABLED"):
+elif env("USE_AZURE_STORAGE"):
     AZURE_CONFIG_OPTIONS = {
-        "connection_string": env("AZURE_BLOB_CONNECTION_STRING"),
+        "connection_string": env("AZURE_STORAGE_CONNECTION_STRING"),
     }
 
     STORAGES = {
@@ -342,7 +342,7 @@ elif env("AZURE_BLOB_ENABLED"):
             "BACKEND": "storages.backends.azure_storage.AzureStorage",
             "OPTIONS": {
                 **AZURE_CONFIG_OPTIONS,
-                "azure_container": env("AZURE_BLOB_MEDIA_CONTAINER_NAME"),
+                "azure_container": env("AZURE_STORAGE_MEDIA_CONTAINER"),
                 "overwrite_files": False,
                 "location": "media/",
                 "expiration_secs": 3600,  # 1 hour
@@ -352,10 +352,10 @@ elif env("AZURE_BLOB_ENABLED"):
             "BACKEND": "storages.backends.azure_storage.AzureStorage",
             "OPTIONS": {
                 **AZURE_CONFIG_OPTIONS,
-                "azure_container": env("AZURE_BLOB_STATIC_CONTAINER_NAME"),
+                "azure_container": env("AZURE_STORAGE_STATIC_CONTAINER"),
                 "overwrite_files": True,
                 "location": "static/",
-                "expiration_secs": 3600,  # 1 hour
+                # NOTE: No SAS signing; the static container is public (blob access)
             },
         },
     }
