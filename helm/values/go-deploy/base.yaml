@@ -22,7 +22,6 @@ app:
     ARC_INGESTION_ENABLED: "true"
     # -- Email
     EMAIL_BACKEND: "utils.email.base.ApiEmailBackend"
-    DEFAULT_FROM_EMAIL: DEFAULT-FROM-EMAIL
 
   serviceAccountName: "service-token-reader"
   serviceAccount:
@@ -41,6 +40,7 @@ app:
       # -- Misc
       SENTRY_DSN: SENTRY-DSN
       # -- Email
+      DEFAULT_FROM_EMAIL: DEFAULT-FROM-EMAIL
       EMAIL_API_URL: EMAIL-API-URL
       EMAIL_API_KEY: EMAIL-API-KEY
       # -- JBA

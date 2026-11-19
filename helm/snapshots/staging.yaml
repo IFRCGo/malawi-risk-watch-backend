@@ -32,7 +32,6 @@ data:
   AZURE_STORAGE_MEDIA_CONTAINER: "media"
   AZURE_STORAGE_STATIC_CONTAINER: "static"
   CSRF_COOKIE_DOMAIN: ".example.com"
-  DEFAULT_FROM_EMAIL: "DEFAULT-FROM-EMAIL"
   EMAIL_BACKEND: "utils.email.base.ApiEmailBackend"
   JBA_SFTP_ENABLED: "true"
   JBA_SFTP_URL: "sftp.floodforesight.com"
@@ -87,7 +86,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: 302366f03721908749079d2fca2a60555ca284af623e9523934e597c00c5b26e
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
       labels:
         app: malawi-risk-watch
         component: api
@@ -190,7 +189,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: 302366f03721908749079d2fca2a60555ca284af623e9523934e597c00c5b26e
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
       labels:
         app: malawi-risk-watch
         component: worker-addon
@@ -286,7 +285,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: 302366f03721908749079d2fca2a60555ca284af623e9523934e597c00c5b26e
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
       labels:
         app: malawi-risk-watch
         component: worker
@@ -385,7 +384,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: 302366f03721908749079d2fca2a60555ca284af623e9523934e597c00c5b26e
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
       labels:
         app: malawi-risk-watch
         component: hook
@@ -457,7 +456,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: 302366f03721908749079d2fca2a60555ca284af623e9523934e597c00c5b26e
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
       labels:
         app: malawi-risk-watch
         component: hook
@@ -527,7 +526,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: 302366f03721908749079d2fca2a60555ca284af623e9523934e597c00c5b26e
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
       labels:
         app: malawi-risk-watch
         component: hook
@@ -674,6 +673,9 @@ spec:
           objectName: AZURE-STORAGE-CONNECTION-STRING
           objectType: secret
         - |
+          objectName: DEFAULT-FROM-EMAIL
+          objectType: secret
+        - |
           objectName: DJANGO-SECRET-KEY
           objectType: secret
         - |
@@ -713,6 +715,8 @@ spec:
           key: ARC_AWS_SECRET_ACCESS_KEY
         - objectName: AZURE-STORAGE-CONNECTION-STRING
           key: AZURE_STORAGE_CONNECTION_STRING
+        - objectName: DEFAULT-FROM-EMAIL
+          key: DEFAULT_FROM_EMAIL
         - objectName: DJANGO-SECRET-KEY
           key: DJANGO_SECRET_KEY
         - objectName: EMAIL-API-KEY
