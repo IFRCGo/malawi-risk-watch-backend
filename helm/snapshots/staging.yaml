@@ -33,6 +33,7 @@ data:
   AZURE_STORAGE_STATIC_CONTAINER: "static"
   CSRF_COOKIE_DOMAIN: ".example.com"
   EMAIL_BACKEND: "utils.email.base.ApiEmailBackend"
+  HEALTH_CHECK_DISK_USAGE_MAX: "none"
   JBA_SFTP_ENABLED: "true"
   JBA_SFTP_URL: "sftp.floodforesight.com"
   SENTRY_ENABLED: "true"
@@ -86,7 +87,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+        checksum/configmap: a4d42bc8775ac1aac1b8460cd08d926c1b02c5842483bb2411c2f42b28cfec58
       labels:
         app: malawi-risk-watch
         component: api
@@ -189,7 +190,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+        checksum/configmap: a4d42bc8775ac1aac1b8460cd08d926c1b02c5842483bb2411c2f42b28cfec58
       labels:
         app: malawi-risk-watch
         component: worker-addon
@@ -285,7 +286,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+        checksum/configmap: a4d42bc8775ac1aac1b8460cd08d926c1b02c5842483bb2411c2f42b28cfec58
       labels:
         app: malawi-risk-watch
         component: worker
@@ -384,7 +385,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+        checksum/configmap: a4d42bc8775ac1aac1b8460cd08d926c1b02c5842483bb2411c2f42b28cfec58
       labels:
         app: malawi-risk-watch
         component: hook
@@ -456,7 +457,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+        checksum/configmap: a4d42bc8775ac1aac1b8460cd08d926c1b02c5842483bb2411c2f42b28cfec58
       labels:
         app: malawi-risk-watch
         component: hook
@@ -526,7 +527,7 @@ spec:
     metadata:
       annotations:
         checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+        checksum/configmap: a4d42bc8775ac1aac1b8460cd08d926c1b02c5842483bb2411c2f42b28cfec58
       labels:
         app: malawi-risk-watch
         component: hook
@@ -688,6 +689,9 @@ spec:
           objectName: JBA-SFTP-PASSWORD
           objectType: secret
         - |
+          objectName: JBA-SFTP-USERNAME
+          objectType: secret
+        - |
           objectName: POSTGRES-DB
           objectType: secret
         - |
@@ -725,6 +729,8 @@ spec:
           key: EMAIL_API_URL
         - objectName: JBA-SFTP-PASSWORD
           key: JBA_SFTP_PASSWORD
+        - objectName: JBA-SFTP-USERNAME
+          key: JBA_SFTP_USERNAME
         - objectName: POSTGRES-DB
           key: POSTGRES_DB
         - objectName: POSTGRES-HOST

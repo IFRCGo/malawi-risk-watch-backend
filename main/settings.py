@@ -47,6 +47,9 @@ env = environ.Env(
     ADDITIONAL_TRUSTED_ORIGINS=(list, []),
     # NOTE: Changing TIME_ZONE will break celery periodic tasks https://django-celery-beat.readthedocs.io/en/latest/#important-warning-about-time-zones
     TIME_ZONE=(str, "UTC"),
+    # Health-check
+    HEALTH_CHECK_DISK_USAGE_MAX=(str, "80"),  # percent; empty/"none" -> disk check skipped
+    HEALTH_CHECK_MEMORY_MIN=(str, "100"),  # MB (toggles the memory check on); empty/"none" -> skipped
     # Database
     POSTGRES_DB=str,
     POSTGRES_USER=str,
@@ -448,16 +451,27 @@ HEALTHCHECK_CACHE_KEY = "mrcs_healthcheck_key"
 BANJO_HEALTH_PROBE_LIVE_URL = "/healthz/live/"
 BANJO_HEALTH_PROBE_READY_URL = "/healthz/ready/"
 
-# NOTE: For non-alpha instances, look at 50 as we have other resources like db/media on the same host
-# We will need to add additional disk if usages are high on the main disk
-HEALTH_CHECK = {
-    "DISK_USAGE_MAX": 50,  # percent
-}
 
-if "alpha" in APP_ENVIRONMENT.lower():
-    HEALTH_CHECK = {
-        "DISK_USAGE_MAX": 90,
-    }
+def _health_check_threshold(env_key):
+    # Empty / "none" disables the corresponding psutil check (the plugin isn't registered);
+    # any other value is the numeric threshold. Lets each environment toggle it via env alone.
+    raw = env(env_key).strip()
+    return None if raw.lower() in ("", "none") else int(raw)
+
+
+HEALTH_CHECK = {
+    # percent; None -> disk check skipped (env HEALTH_CHECK_DISK_USAGE_MAX)
+    "DISK_USAGE_MAX": _health_check_threshold("HEALTH_CHECK_DISK_USAGE_MAX"),
+    # MB toggle; None -> memory check skipped (env HEALTH_CHECK_MEMORY_MIN)
+    "MEMORY_MIN": _health_check_threshold("HEALTH_CHECK_MEMORY_MIN"),
+    # Both psutil checks raise a *warning*, and the library turns warnings into errors by
+    # default - so a node running low on disk would make /health-check/ (and
+    # `manage.py health_check`) fail on every pod at once. Both metrics are node-level
+    # anyway: the disk check measures the filesystem behind the working directory and the
+    # memory check reads host-wide totals, not the container's cgroup limit. Report them
+    # in the response, don't fail the endpoint on them.
+    "WARNINGS_AS_ERRORS": False,
+}
 
 TRUSTED_ORIGINS = [
     APP_DOMAIN.geturl(),

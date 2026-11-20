@@ -22,6 +22,8 @@ app:
     ARC_INGESTION_ENABLED: "true"
     # -- Email
     EMAIL_BACKEND: "utils.email.base.ApiEmailBackend"
+    # -- Disk usage is a node-level metric on k8s; leave it to cluster monitoring
+    HEALTH_CHECK_DISK_USAGE_MAX: "none"
 
   serviceAccountName: "service-token-reader"
   serviceAccount:
@@ -44,6 +46,7 @@ app:
       EMAIL_API_URL: EMAIL-API-URL
       EMAIL_API_KEY: EMAIL-API-KEY
       # -- JBA
+      JBA_SFTP_USERNAME: JBA-SFTP-USERNAME
       JBA_SFTP_PASSWORD: JBA-SFTP-PASSWORD
       # -- ARC
       ARC_AWS_ACCESS_KEY_ID: ARC-AWS-ACCESS-KEY-ID
