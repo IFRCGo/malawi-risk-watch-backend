@@ -646,6 +646,17 @@ LOGGING = {
             "propagate": False,
             "filters": ["skip_health_probes"],
         },
+        # Silence Azure
+        "azure.core.pipeline.policies.http_logging_policy": {
+            "level": "WARNING",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "azure": {
+            "level": "WARNING",
+            "handlers": ["console"],
+            "propagate": False,
+        },
     },
     "root": {
         "level": env("APP_LOG_LEVEL"),
