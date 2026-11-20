@@ -29,6 +29,7 @@ dependencies = [
     "paramiko>=5.0.0",
     "polars>=1.41.0",
     "banjo-utils",
+    "azure-identity>=1.27.0",
 ]
 
 [tool.uv.sources]

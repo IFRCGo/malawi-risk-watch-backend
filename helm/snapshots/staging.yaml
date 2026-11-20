@@ -1,0 +1,739 @@
+---
+# Source: malawi-backend-helm/charts/app/templates/api/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: service-token-reader
+  annotations:
+    
+    azure.workload.identity/client-id: 00000000-0000-0000-0000-000000000000
+  labels:
+    
+    azure.workload.identity/use: "true"
+automountServiceAccountToken: true
+
+---
+# Source: malawi-backend-helm/charts/app/templates/config/configmap.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: malawi-risk-watch-env-name
+  labels:
+    app: malawi-risk-watch
+    environment: staging
+    release: release-name
+data:
+  # Configs
+  ADDITIONAL_TRUSTED_ORIGINS: "https://go-stage.ifrc.org"
+  APP_DOMAIN: "https://malawi-rw-api.example.com"
+  APP_ENVIRONMENT: "staging"
+  APP_RELEASE: "SET-BY-CICD-TAG"
+  ARC_INGESTION_ENABLED: "true"
+  AZURE_STORAGE_MEDIA_CONTAINER: "media"
+  AZURE_STORAGE_STATIC_CONTAINER: "static"
+  CSRF_COOKIE_DOMAIN: ".example.com"
+  EMAIL_BACKEND: "utils.email.base.ApiEmailBackend"
+  JBA_SFTP_ENABLED: "true"
+  JBA_SFTP_URL: "sftp.floodforesight.com"
+  SENTRY_ENABLED: "true"
+  SENTRY_PROFILE_SAMPLE_RATE: "0.5"
+  SENTRY_TRACES_SAMPLE_RATE: "0.5"
+  SESSION_COOKIE_DOMAIN: ".example.com"
+  USE_AZURE_STORAGE: "true"
+
+---
+# Source: malawi-backend-helm/charts/app/templates/api/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: malawi-risk-watch-api
+  labels:
+    app: malawi-risk-watch
+    component: api
+    environment: staging
+    release: release-name
+spec:
+  type: ClusterIP
+  selector:
+    app: malawi-risk-watch
+    component: api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+
+---
+# Source: malawi-backend-helm/charts/app/templates/api/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: malawi-risk-watch-api
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+    reloader.stakater.com/auto: "true"
+  labels:
+    app: malawi-risk-watch
+    component: api
+    environment: staging
+    release: release-name
+spec:
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: malawi-risk-watch
+      component: api
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+      labels:
+        app: malawi-risk-watch
+        component: api
+        azure.workload.identity/use: "true"
+    spec:
+      volumes:
+        - name: malawi-risk-watch-secret
+          csi:
+            driver: "secrets-store.csi.k8s.io"
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: malawi-risk-watch-secret-provider
+      serviceAccountName: service-token-reader
+      terminationGracePeriodSeconds: 38
+      containers:
+        - name: api
+          image: "SET-BY-CICD-IMAGE:SET-BY-CICD-TAG"
+          imagePullPolicy: IfNotPresent
+          command:
+            - misc/prod/run_web.sh
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /healthz/live/
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+          readinessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /healthz/ready/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+          startupProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /healthz/ready/
+              port: http
+            periodSeconds: 5
+          resources:
+            limits:
+              memory: 1Gi
+            requests:
+              cpu: "0.3"
+              memory: 0.4Gi
+          envFrom:
+            - secretRef:
+                name: malawi-risk-watch-secret
+            - configMapRef:
+                name: malawi-risk-watch-env-name
+          env:
+            - name: APP_TYPE
+              value: "web"
+            - name: CACHE_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/1
+            - name: CELERY_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/0
+            
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 8
+          volumeMounts:
+            - name: malawi-risk-watch-secret
+              mountPath: /mnt/secrets-store
+              readOnly: true
+
+---
+# Source: malawi-backend-helm/charts/app/templates/worker-addons/deployment.yaml
+# Addon: beat
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: malawi-risk-watch-worker-beat
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+    reloader.stakater.com/auto: "true"
+  labels:
+    app: malawi-risk-watch
+    component: worker-addon
+    addon: beat
+    environment: staging
+    release: release-name
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: malawi-risk-watch
+      component: worker-addon
+      addon: beat
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+      labels:
+        app: malawi-risk-watch
+        component: worker-addon
+        addon: beat
+        azure.workload.identity/use: "true"
+    spec:
+      volumes:
+        - name: malawi-risk-watch-secret
+          csi:
+            driver: "secrets-store.csi.k8s.io"
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: malawi-risk-watch-secret-provider
+        - emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+          name: celery-heartbeat
+      serviceAccountName: service-token-reader
+      containers:
+        - name: beat
+          image: "SET-BY-CICD-IMAGE:SET-BY-CICD-TAG"
+          imagePullPolicy: IfNotPresent
+          command:
+            - celery
+            - -A
+            - main
+            - beat
+            - -l
+            - INFO
+            - --scheduler
+            - banjo_utils.celery_health.persistent.HeartbeatPersistentScheduler
+          livenessProbe:
+            exec:
+              command:
+              - banjo-celery-probe
+              - --max-age
+              - "360"
+            failureThreshold: 3
+            periodSeconds: 60
+            timeoutSeconds: 5
+          resources:
+            limits:
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          envFrom:
+            - secretRef:
+                name: malawi-risk-watch-secret
+            - configMapRef:
+                name: malawi-risk-watch-env-name
+          env:
+            - name: APP_TYPE
+              value: "worker"
+            - name: CACHE_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/1
+            - name: CELERY_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/0
+            
+            - name: BANJO_CELERY_HEARTBEAT_FILE
+              value: "/var/run/celery/beat_heartbeat"
+          volumeMounts:
+            - name: malawi-risk-watch-secret
+              mountPath: /mnt/secrets-store
+              readOnly: true
+            - mountPath: /var/run/celery
+              name: celery-heartbeat
+
+---
+# Source: malawi-backend-helm/charts/app/templates/worker/deployment.yaml
+# Queue: default
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: malawi-risk-watch-worker-default
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+    reloader.stakater.com/auto: "true"
+  labels:
+    app: malawi-risk-watch
+    component: worker
+    queue: default
+    environment: staging
+    release: release-name
+spec:
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: malawi-risk-watch
+      component: worker
+      queue: default
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+      labels:
+        app: malawi-risk-watch
+        component: worker
+        queue: default
+        azure.workload.identity/use: "true"
+    spec:
+      volumes:
+        - name: malawi-risk-watch-secret
+          csi:
+            driver: "secrets-store.csi.k8s.io"
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: malawi-risk-watch-secret-provider
+        - emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+          name: celery-heartbeat
+      serviceAccountName: service-token-reader
+      containers:
+        - name: worker
+          command:
+            - celery
+            - -A
+            - main
+            - worker
+            - -l
+            - INFO
+            - -Q
+            - default
+            - --concurrency
+            - "4"
+            - --max-tasks-per-child
+            - "10"
+          image: "SET-BY-CICD-IMAGE:SET-BY-CICD-TAG"
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+              - banjo-celery-probe
+            failureThreshold: 6
+            periodSeconds: 20
+            timeoutSeconds: 5
+          startupProbe:
+            exec:
+              command:
+              - banjo-celery-probe
+            failureThreshold: 30
+            periodSeconds: 5
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          envFrom:
+            - secretRef:
+                name: malawi-risk-watch-secret
+            - configMapRef:
+                name: malawi-risk-watch-env-name
+          env:
+            - name: APP_TYPE
+              value: "worker"
+            - name: CACHE_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/1
+            - name: CELERY_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/0
+            
+            - name: BANJO_CELERY_HEARTBEAT_FILE
+              value: "/var/run/celery/worker_heartbeat"
+          volumeMounts:
+            - name: malawi-risk-watch-secret
+              mountPath: /mnt/secrets-store
+              readOnly: true
+            - mountPath: /var/run/celery
+              name: celery-heartbeat
+
+---
+# Source: malawi-backend-helm/charts/app/templates/hooks/job.yaml
+# Hook: collect-static
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: malawi-risk-watch-collect-static
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "20"
+  labels:
+    app: malawi-risk-watch
+    component: hook
+    hookName: collect-static
+    environment: staging
+    release: release-name
+spec:
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+      labels:
+        app: malawi-risk-watch
+        component: hook
+        hookName: collect-static
+        azure.workload.identity/use: "true"
+    spec:
+      restartPolicy: "Never"
+      volumes:
+        - name: malawi-risk-watch-secret
+          csi:
+            driver: "secrets-store.csi.k8s.io"
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: malawi-risk-watch-secret-provider
+      serviceAccountName: service-token-reader
+      containers:
+        - name: collect-static
+          image: "SET-BY-CICD-IMAGE:SET-BY-CICD-TAG"
+          imagePullPolicy: IfNotPresent
+          command: 
+            - ./manage.py
+            - collectstatic
+            - --noinput
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          envFrom:
+            - secretRef:
+                name: malawi-risk-watch-secret
+            - configMapRef:
+                name: malawi-risk-watch-env-name
+          env:
+            - name: APP_TYPE
+              value: "hook"
+            - name: CACHE_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/1
+            - name: CELERY_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/0
+            
+          volumeMounts:
+            - name: malawi-risk-watch-secret
+              mountPath: /mnt/secrets-store
+              readOnly: true
+
+
+---
+# Source: malawi-backend-helm/charts/app/templates/hooks/job.yaml
+# Hook: db-migrate
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: malawi-risk-watch-db-migrate-
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "20"
+  labels:
+    app: malawi-risk-watch
+    component: hook
+    hookName: db-migrate
+    environment: staging
+    release: release-name
+spec:
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+      labels:
+        app: malawi-risk-watch
+        component: hook
+        hookName: db-migrate
+        azure.workload.identity/use: "true"
+    spec:
+      restartPolicy: "Never"
+      volumes:
+        - name: malawi-risk-watch-secret
+          csi:
+            driver: "secrets-store.csi.k8s.io"
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: malawi-risk-watch-secret-provider
+      serviceAccountName: service-token-reader
+      containers:
+        - name: db-migrate
+          image: "SET-BY-CICD-IMAGE:SET-BY-CICD-TAG"
+          imagePullPolicy: IfNotPresent
+          command: 
+            - ./manage.py
+            - migrate
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          envFrom:
+            - secretRef:
+                name: malawi-risk-watch-secret
+            - configMapRef:
+                name: malawi-risk-watch-env-name
+          env:
+            - name: APP_TYPE
+              value: "hook"
+            - name: CACHE_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/1
+            - name: CELERY_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/0
+            
+          volumeMounts:
+            - name: malawi-risk-watch-secret
+              mountPath: /mnt/secrets-store
+              readOnly: true
+
+
+---
+# Source: malawi-backend-helm/charts/app/templates/hooks/job.yaml
+# Hook: wait-for-resources
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: malawi-risk-watch-wait-for-resources
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "10"
+  labels:
+    app: malawi-risk-watch
+    component: hook
+    hookName: wait-for-resources
+    environment: staging
+    release: release-name
+spec:
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/configmap: c1af9c1a6255d3ecbe09e0acf0d80e60f8018a164d77072cab8a466dd5a7d57d
+      labels:
+        app: malawi-risk-watch
+        component: hook
+        hookName: wait-for-resources
+        azure.workload.identity/use: "true"
+    spec:
+      restartPolicy: "Never"
+      volumes:
+        - name: malawi-risk-watch-secret
+          csi:
+            driver: "secrets-store.csi.k8s.io"
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: malawi-risk-watch-secret-provider
+      serviceAccountName: service-token-reader
+      containers:
+        - name: wait-for-resources
+          image: "SET-BY-CICD-IMAGE:SET-BY-CICD-TAG"
+          imagePullPolicy: IfNotPresent
+          command: 
+            - ./manage.py
+            - wait_for_resources
+            - --db
+            - --cache
+            - --celery-broker
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          envFrom:
+            - secretRef:
+                name: malawi-risk-watch-secret
+            - configMapRef:
+                name: malawi-risk-watch-env-name
+          env:
+            - name: APP_TYPE
+              value: "hook"
+            - name: CACHE_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/1
+            - name: CELERY_REDIS_URL
+              value: redis://mrcs-dragonfly:6379/0
+            
+          volumeMounts:
+            - name: malawi-risk-watch-secret
+              mountPath: /mnt/secrets-store
+              readOnly: true
+
+---
+# Source: malawi-backend-helm/charts/app/templates/api/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: malawi-risk-watch-api
+  labels:
+    app: malawi-risk-watch
+    component: api
+    environment: staging
+    release: release-name
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+    traefik.ingress.kubernetes.io/router.middlewares: default-malawi-body-size@kubernetescrd
+spec:
+  ingressClassName: "traefik"
+  rules:
+    - host: "malawi-rw-api.example.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: malawi-risk-watch-api
+                port:
+                  number: 80
+  tls:
+    - secretName: malawi-rw-api-example-cert
+      hosts:
+        - "malawi-rw-api.example.com"
+
+---
+# Source: malawi-backend-helm/charts/app/templates/extraManifests.yaml
+# Manifest: dragonflydb-cluster
+apiVersion: dragonflydb.io/v1alpha1
+kind: Dragonfly
+metadata:
+  labels:
+    app.kubernetes.io/name: dragonfly
+  name: mrcs-dragonfly
+spec:
+  args:
+  - --dbfilename=mainSnapshot
+  replicas: 1
+  resources:
+    limits:
+      cpu: "1"
+      memory: 750Mi
+    requests:
+      cpu: "0.1"
+      memory: 500Mi
+  snapshot:
+    cron: '*/5 * * * *'
+    persistentVolumeClaimSpec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+
+---
+# Source: malawi-backend-helm/charts/app/templates/extraManifests.yaml
+# Manifest: malawi-body-size
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: malawi-body-size
+spec:
+  buffering:
+    maxRequestBodyBytes: 52428800
+
+---
+# Source: malawi-backend-helm/charts/app/templates/api/secrets-provider-class.yaml
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: malawi-risk-watch-secret-provider
+spec:
+  provider: azure
+  parameters:
+    clientID: 00000000-0000-0000-0000-000000000000
+    keyvaultName: malawi-rw-example-kv
+    tenantId: 11111111-1111-1111-1111-111111111111
+    usePodIdentity: "false"
+    objects: |
+      array:
+        - |
+          objectName: ARC-AWS-ACCESS-KEY-ID
+          objectType: secret
+        - |
+          objectName: ARC-AWS-SECRET-ACCESS-KEY
+          objectType: secret
+        - |
+          objectName: AZURE-STORAGE-CONNECTION-STRING
+          objectType: secret
+        - |
+          objectName: DEFAULT-FROM-EMAIL
+          objectType: secret
+        - |
+          objectName: DJANGO-SECRET-KEY
+          objectType: secret
+        - |
+          objectName: EMAIL-API-KEY
+          objectType: secret
+        - |
+          objectName: EMAIL-API-URL
+          objectType: secret
+        - |
+          objectName: JBA-SFTP-PASSWORD
+          objectType: secret
+        - |
+          objectName: POSTGRES-DB
+          objectType: secret
+        - |
+          objectName: POSTGRES-HOST
+          objectType: secret
+        - |
+          objectName: POSTGRES-PASSWORD
+          objectType: secret
+        - |
+          objectName: POSTGRES-PORT
+          objectType: secret
+        - |
+          objectName: POSTGRES-USER
+          objectType: secret
+        - |
+          objectName: SENTRY-DSN
+          objectType: secret
+  secretObjects:
+    - secretName: malawi-risk-watch-secret
+      type: Opaque
+      data:
+        - objectName: ARC-AWS-ACCESS-KEY-ID
+          key: ARC_AWS_ACCESS_KEY_ID
+        - objectName: ARC-AWS-SECRET-ACCESS-KEY
+          key: ARC_AWS_SECRET_ACCESS_KEY
+        - objectName: AZURE-STORAGE-CONNECTION-STRING
+          key: AZURE_STORAGE_CONNECTION_STRING
+        - objectName: DEFAULT-FROM-EMAIL
+          key: DEFAULT_FROM_EMAIL
+        - objectName: DJANGO-SECRET-KEY
+          key: DJANGO_SECRET_KEY
+        - objectName: EMAIL-API-KEY
+          key: EMAIL_API_KEY
+        - objectName: EMAIL-API-URL
+          key: EMAIL_API_URL
+        - objectName: JBA-SFTP-PASSWORD
+          key: JBA_SFTP_PASSWORD
+        - objectName: POSTGRES-DB
+          key: POSTGRES_DB
+        - objectName: POSTGRES-HOST
+          key: POSTGRES_HOST
+        - objectName: POSTGRES-PASSWORD
+          key: POSTGRES_PASSWORD
+        - objectName: POSTGRES-PORT
+          key: POSTGRES_PORT
+        - objectName: POSTGRES-USER
+          key: POSTGRES_USER
+        - objectName: SENTRY-DSN
+          key: SENTRY_DSN

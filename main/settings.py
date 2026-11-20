@@ -7,6 +7,7 @@ from urllib.parse import ParseResult
 from urllib.parse import urlparse as _urlparse
 
 import environ
+from azure.identity import DefaultAzureCredential
 from banjo_utils.health import is_health_probe_path
 
 from main.logging import log_render_extra_context
@@ -65,10 +66,14 @@ env = environ.Env(
     AWS_S3_MEDIA_BUCKET_NAME=str,
     AWS_S3_STATIC_BUCKET_NAME=str,
     # -- Azure blob storage
-    AZURE_BLOB_ENABLED=(bool, False),
-    AZURE_BLOB_CONNECTION_STRING=str,
-    AZURE_BLOB_MEDIA_CONTAINER_NAME=str,
-    AZURE_BLOB_STATIC_CONTAINER_NAME=str,
+    USE_AZURE_STORAGE=(bool, False),
+    AZURE_STORAGE_MEDIA_CONTAINER=str,  # media
+    AZURE_STORAGE_STATIC_CONTAINER=str,  # static
+    AZURE_STORAGE_CONNECTION_STRING=(str, None),
+    AZURE_STORAGE_ACCOUNT_NAME=(str, None),
+    AZURE_STORAGE_ACCOUNT_KEY=(str, None),
+    AZURE_STORAGE_TOKEN_CREDENTIAL=(str, None),
+    AZURE_STORAGE_MANAGED_IDENTITY=(bool, False),
     # -- Filesystem (default) XXX: Don't use in production?
     MEDIA_ROOT=(str, BASE_DIR / ".data/media"),
     STATIC_ROOT=(str, BASE_DIR / ".data/static"),
@@ -332,30 +337,41 @@ if env("AWS_S3_ENABLED"):
         },
     }
 
-elif env("AZURE_BLOB_ENABLED"):
-    AZURE_CONFIG_OPTIONS = {
-        "connection_string": env("AZURE_BLOB_CONNECTION_STRING"),
+elif env("USE_AZURE_STORAGE"):
+    AZURE_STORAGE_CONFIG_OPTIONS = {
+        "connection_string": env("AZURE_STORAGE_CONNECTION_STRING"),
+        "overwrite_files": False,
     }
+
+    if not env("AZURE_STORAGE_CONNECTION_STRING"):
+        AZURE_STORAGE_CONFIG_OPTIONS.update(
+            {
+                "account_name": env("AZURE_STORAGE_ACCOUNT_NAME"),
+                "account_key": env("AZURE_STORAGE_ACCOUNT_KEY"),
+                "token_credential": env("AZURE_STORAGE_TOKEN_CREDENTIAL"),
+            },
+        )
+
+        if env("AZURE_STORAGE_MANAGED_IDENTITY"):
+            AZURE_STORAGE_CONFIG_OPTIONS["token_credential"] = DefaultAzureCredential()
 
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.azure_storage.AzureStorage",
             "OPTIONS": {
-                **AZURE_CONFIG_OPTIONS,
-                "azure_container": env("AZURE_BLOB_MEDIA_CONTAINER_NAME"),
-                "overwrite_files": False,
+                **AZURE_STORAGE_CONFIG_OPTIONS,
+                "azure_container": env("AZURE_STORAGE_MEDIA_CONTAINER"),
                 "location": "media/",
-                "expiration_secs": 3600,  # 1 hour
+                "expiration_secs": 3600,  # 1 hour; media container is private (SAS-signed URLs)
             },
         },
         "staticfiles": {
             "BACKEND": "storages.backends.azure_storage.AzureStorage",
             "OPTIONS": {
-                **AZURE_CONFIG_OPTIONS,
-                "azure_container": env("AZURE_BLOB_STATIC_CONTAINER_NAME"),
+                **AZURE_STORAGE_CONFIG_OPTIONS,
+                "azure_container": env("AZURE_STORAGE_STATIC_CONTAINER"),
                 "overwrite_files": True,
                 "location": "static/",
-                "expiration_secs": 3600,  # 1 hour
             },
         },
     }

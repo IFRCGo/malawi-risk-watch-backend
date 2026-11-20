@@ -19,7 +19,6 @@ app:
       # className is not hardcoded; set it per-environment (e.g. values/traefik.yaml).
       className:
       host:
-      annotations:
     resources:
       requests:
         cpu: "0.3"
@@ -28,7 +27,7 @@ app:
         memory: 1Gi
 
   worker:
-    enabled: false
+    enabled: true
     queueDefaults:
       commandPrefix:
         - "celery"
@@ -67,7 +66,7 @@ app:
           - "10"
     addons:
       beat:
-        enabled: false
+        enabled: true
         replicaCount: 1
         strategy: {type: Recreate}
         # In-code beat_schedule (no django-celery-beat) -> persistent scheduler.
@@ -107,17 +106,12 @@ app:
   env:
     APP_RELEASE: "{{ $.Values.image.tag }}"
     APP_ENVIRONMENT: "{{ $.Values.environment }}"
-    DJANGO_DEBUG: "false"
-    # AWS
-    AWS_S3_ENABLED: "false"
+    USE_AZURE_STORAGE: "false"
+    JBA_SFTP_ENABLED: "false"
+    ARC_INGESTION_ENABLED: "false"
     # Sentry
     SENTRY_ENABLED: "false"
     SENTRY_TRACES_SAMPLE_RATE: "0.2"
     SENTRY_PROFILE_SAMPLE_RATE: "0.2"
-    # App-domain vars (APP_DOMAIN, FRONTEND_DOMAIN, SESSION_COOKIE_DOMAIN,
-    # CSRF_COOKIE_DOMAIN) are set per-environment; see main/settings.py for options.
 
-  # NOTE: Check main/settings.py for all available options. Required secrets
-  # (DJANGO_SECRET_KEY, SENTRY_DSN) are provided per-environment (CICD /
-  # values/<env>.yaml), not defaulted here.
   secrets: {}

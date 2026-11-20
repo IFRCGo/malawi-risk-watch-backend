@@ -1,19 +1,8 @@
 app:
   environment: ALPHA
 
-  api:
-    ingress:
-      enabled: true
-
-  worker:
-    enabled: true
-    addons:
-      beat:
-        enabled: true
-
   # collect-static needs S3/minio reachable; gate it alongside the DB/cache/broker.
   hooks:
-    enabled: true
     jobs:
       wait-for-resources:
         command: ["./manage.py", "wait_for_resources", "--db", "--cache", "--celery-broker", "--minio"]

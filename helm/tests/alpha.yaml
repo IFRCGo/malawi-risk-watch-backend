@@ -1,25 +1,30 @@
 app:
+  # environment comes from values/alpha.yaml — not duplicated here, so the
+  # snapshot proves the overlay is what sets it.
   image:
-    name: local.git.com/toggle-corp/malawi-backend
+    name: local.example.com/toggle-corp/malawi-backend
     tag: develop.xxxxxxxx
 
   api:
     ingress:
-      host: mrcs-api.test.example.com
+      host: malawi-rw-api.alpha.example.com
 
+  # Dummy values for snapshot rendering only — real per-environment values
+  # (domains, JBA/ARC credentials, Sentry DSN) are supplied at deploy time.
+  # POSTGRES_PASSWORD and AWS_S3_* credentials come from extraEnvVars (values/alpha.yaml).
   env:
-    APP_DOMAIN: "https://mrcs-api.test.example.com"
-    FRONTEND_DOMAIN: "https://mrcs.test.example.com"
-    SESSION_COOKIE_DOMAIN: ".example.com"
-    CSRF_COOKIE_DOMAIN: ".example.com"
+    APP_DOMAIN: https://malawi-rw-api.alpha.example.com
+    ADDITIONAL_TRUSTED_ORIGINS: https://go.alpha.example.com
+    SESSION_COOKIE_DOMAIN: .example.com
+    CSRF_COOKIE_DOMAIN: .example.com
 
-  # POSTGRES_PASSWORD and the AWS_S3_* credentials are consumed via extraEnvVars
-  # valueFrom (cluster Secrets), so they are not set here.
   secrets:
-    DJANGO_SECRET_KEY: "django-secret-key"
-    SENTRY_DSN: "https://xyz@sentry.test.example.com/1"
-    DEFAULT_FROM_EMAIL: "mrcs-drm@test.example.com"
-    EMAIL_HOST: "smtp.test.example.com"
+    DJANGO_SECRET_KEY: SECURE_DJANGO_SECRET_KEY
+    # Sentry
+    SENTRY_DSN: https://xyz@sentry.example.com/14
+    # Email
+    DEFAULT_FROM_EMAIL: mrcs-drm@example.com
+    EMAIL_HOST: smtp.example.com
     EMAIL_PORT: "587"
-    EMAIL_HOST_USER: "mrcs"
-    EMAIL_HOST_PASSWORD: "email-password"
+    EMAIL_HOST_USER: mrcs
+    EMAIL_HOST_PASSWORD: XXXXXXXXXXXXXXXXXXXXXXXX

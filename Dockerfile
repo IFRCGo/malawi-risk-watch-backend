@@ -2,7 +2,7 @@ FROM python:3.12-slim-bookworm AS base
 COPY --from=ghcr.io/astral-sh/uv:0.6.2 /uv /uvx /bin/
 
 LABEL maintainer="MRCS Dev"
-LABEL org.opencontainers.image.source="https://github.com/toggle-corp/malawi-risk-watch-backend/"
+LABEL org.opencontainers.image.source="https://github.com/IFRCGo/malawi-risk-watch-backend/"
 
 ENV PYTHONUNBUFFERED=1
 

@@ -11,18 +11,18 @@ metadata:
 type: Opaque
 stringData:
   # secrets
-  DEFAULT_FROM_EMAIL: "mrcs-drm@test.example.com"
-  DJANGO_SECRET_KEY: "django-secret-key"
+  DEFAULT_FROM_EMAIL: "mrcs-drm@example.com"
+  DJANGO_SECRET_KEY: "SECURE_DJANGO_SECRET_KEY"
   EMAIL_BACKEND: "django.core.mail.backends.smtp.EmailBackend"
-  EMAIL_HOST: "smtp.test.example.com"
-  EMAIL_HOST_PASSWORD: "email-password"
+  EMAIL_HOST: "smtp.example.com"
+  EMAIL_HOST_PASSWORD: "XXXXXXXXXXXXXXXXXXXXXXXX"
   EMAIL_HOST_USER: "mrcs"
   EMAIL_PORT: "587"
   POSTGRES_DB: "postgres"
   POSTGRES_HOST: "tcpg"
   POSTGRES_PORT: "5432"
   POSTGRES_USER: "postgres"
-  SENTRY_DSN: "https://xyz@sentry.test.example.com/1"
+  SENTRY_DSN: "https://xyz@sentry.example.com/14"
 
 ---
 # Source: malawi-backend-helm/charts/app/templates/config/configmap.yaml
@@ -36,19 +36,21 @@ metadata:
     release: release-name
 data:
   # Configs
-  APP_DOMAIN: "https://mrcs-api.test.example.com"
+  ADDITIONAL_TRUSTED_ORIGINS: "https://go.alpha.example.com"
+  APP_DOMAIN: "https://malawi-rw-api.alpha.example.com"
   APP_ENVIRONMENT: "ALPHA"
   APP_RELEASE: "develop.xxxxxxxx"
+  ARC_INGESTION_ENABLED: "false"
   AWS_S3_ENABLED: "true"
   AWS_S3_MEDIA_BUCKET_NAME: "mrcs-media"
   AWS_S3_STATIC_BUCKET_NAME: "mrcs-static"
   CSRF_COOKIE_DOMAIN: ".example.com"
-  DJANGO_DEBUG: "false"
-  FRONTEND_DOMAIN: "https://mrcs.test.example.com"
+  JBA_SFTP_ENABLED: "false"
   SENTRY_ENABLED: "true"
   SENTRY_PROFILE_SAMPLE_RATE: "0.2"
   SENTRY_TRACES_SAMPLE_RATE: "0.2"
   SESSION_COOKIE_DOMAIN: ".example.com"
+  USE_AZURE_STORAGE: "false"
 
 ---
 # Source: malawi-backend-helm/charts/app/templates/api/service.yaml
@@ -94,8 +96,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: f6bcaa5ffb0be4237ded684ecc780aab066adb2a75a7f1d93419294484f51ce0
-        checksum/configmap: 3ae4fe63311369956ecde41cc15810e3b70480e846487013ef106468753e4a66
+        checksum/secret: 7740ba2b5fdae1b968e2f2572067e07bacdcb8675bcdd8978fd98df56eed7539
+        checksum/configmap: 739ded338a77d1749fb705315b362fc4c2f1bcfadc4c10356e638041c12ed748
       labels:
         app: release-name-app
         component: api
@@ -103,7 +105,7 @@ spec:
       terminationGracePeriodSeconds: 38
       containers:
         - name: api
-          image: "local.git.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
+          image: "local.example.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
           imagePullPolicy: IfNotPresent
           command:
             - misc/prod/run_web.sh
@@ -209,8 +211,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: f6bcaa5ffb0be4237ded684ecc780aab066adb2a75a7f1d93419294484f51ce0
-        checksum/configmap: 3ae4fe63311369956ecde41cc15810e3b70480e846487013ef106468753e4a66
+        checksum/secret: 7740ba2b5fdae1b968e2f2572067e07bacdcb8675bcdd8978fd98df56eed7539
+        checksum/configmap: 739ded338a77d1749fb705315b362fc4c2f1bcfadc4c10356e638041c12ed748
       labels:
         app: release-name-app
         component: worker-addon
@@ -223,7 +225,7 @@ spec:
           name: celery-heartbeat
       containers:
         - name: beat
-          image: "local.git.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
+          image: "local.example.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
           imagePullPolicy: IfNotPresent
           command:
             - celery
@@ -319,8 +321,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: f6bcaa5ffb0be4237ded684ecc780aab066adb2a75a7f1d93419294484f51ce0
-        checksum/configmap: 3ae4fe63311369956ecde41cc15810e3b70480e846487013ef106468753e4a66
+        checksum/secret: 7740ba2b5fdae1b968e2f2572067e07bacdcb8675bcdd8978fd98df56eed7539
+        checksum/configmap: 739ded338a77d1749fb705315b362fc4c2f1bcfadc4c10356e638041c12ed748
       labels:
         app: release-name-app
         component: worker
@@ -346,7 +348,7 @@ spec:
             - "4"
             - --max-tasks-per-child
             - "10"
-          image: "local.git.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
+          image: "local.example.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
@@ -432,8 +434,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: f6bcaa5ffb0be4237ded684ecc780aab066adb2a75a7f1d93419294484f51ce0
-        checksum/configmap: 3ae4fe63311369956ecde41cc15810e3b70480e846487013ef106468753e4a66
+        checksum/secret: 7740ba2b5fdae1b968e2f2572067e07bacdcb8675bcdd8978fd98df56eed7539
+        checksum/configmap: 739ded338a77d1749fb705315b362fc4c2f1bcfadc4c10356e638041c12ed748
       labels:
         app: release-name-app
         component: hook
@@ -442,7 +444,7 @@ spec:
       restartPolicy: "Never"
       containers:
         - name: collect-static
-          image: "local.git.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
+          image: "local.example.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
           imagePullPolicy: IfNotPresent
           command: 
             - ./manage.py
@@ -516,8 +518,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: f6bcaa5ffb0be4237ded684ecc780aab066adb2a75a7f1d93419294484f51ce0
-        checksum/configmap: 3ae4fe63311369956ecde41cc15810e3b70480e846487013ef106468753e4a66
+        checksum/secret: 7740ba2b5fdae1b968e2f2572067e07bacdcb8675bcdd8978fd98df56eed7539
+        checksum/configmap: 739ded338a77d1749fb705315b362fc4c2f1bcfadc4c10356e638041c12ed748
       labels:
         app: release-name-app
         component: hook
@@ -526,7 +528,7 @@ spec:
       restartPolicy: "Never"
       containers:
         - name: db-migrate
-          image: "local.git.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
+          image: "local.example.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
           imagePullPolicy: IfNotPresent
           command: 
             - ./manage.py
@@ -598,8 +600,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: f6bcaa5ffb0be4237ded684ecc780aab066adb2a75a7f1d93419294484f51ce0
-        checksum/configmap: 3ae4fe63311369956ecde41cc15810e3b70480e846487013ef106468753e4a66
+        checksum/secret: 7740ba2b5fdae1b968e2f2572067e07bacdcb8675bcdd8978fd98df56eed7539
+        checksum/configmap: 739ded338a77d1749fb705315b362fc4c2f1bcfadc4c10356e638041c12ed748
       labels:
         app: release-name-app
         component: hook
@@ -608,7 +610,7 @@ spec:
       restartPolicy: "Never"
       containers:
         - name: wait-for-resources
-          image: "local.git.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
+          image: "local.example.com/toggle-corp/malawi-backend:develop.xxxxxxxx"
           imagePullPolicy: IfNotPresent
           command: 
             - ./manage.py
@@ -679,7 +681,7 @@ metadata:
 spec:
   ingressClassName: "traefik"
   rules:
-    - host: "mrcs-api.test.example.com"
+    - host: "malawi-rw-api.alpha.example.com"
       http:
         paths:
           - path: /
