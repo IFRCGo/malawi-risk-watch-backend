@@ -1,5 +1,6 @@
 import logging
 import secrets
+from datetime import date
 
 from celery import shared_task
 from django.utils import timezone
@@ -47,13 +48,18 @@ def run_jba_pipeline(self, jba_ingestion_run_id: int) -> None:
 
 
 @shared_task
-def launch_jba_pipeline():
+def launch_jba_pipeline(run_date: str | None = None) -> None:
+    """Create a JBA ingestion run and queue it.
+
+    `run_date` is an ISO date string (YYYY-MM-DD) selecting which SFTP day folder to ingest;
+    it defaults to today, which is what the scheduled daily run uses.
+    """
     jba_ingestion_run = JbaIngestionRun.objects.create(
-        run_date=timezone.now().date(),
+        run_date=date.fromisoformat(run_date) if run_date else timezone.now().date(),
         status=IngestionStatus.PENDING,
     )
     run_jba_pipeline.delay(jba_ingestion_run.id)  # type: ignore[attr-defined]
-    logger.info("Queued JBA pipeline. Run ID: %s", jba_ingestion_run.id)
+    logger.info("Queued JBA pipeline. Run ID: %s run_date=%s", jba_ingestion_run.id, jba_ingestion_run.run_date)
 
 
 @shared_task(
@@ -62,13 +68,18 @@ def launch_jba_pipeline():
     default_retry_delay=30,
     acks_late=True,
 )
-def launch_arc_pipeline(self) -> None:
+def launch_arc_pipeline(self, run_date: str | None = None) -> None:
+    """Create an ARC ingestion run and queue it.
+
+    `run_date` is an ISO date string (YYYY-MM-DD); the pipeline ingests the observations for the
+    day before it. It defaults to today, which is what the scheduled daily run uses.
+    """
     run = ArcIngestionRun.objects.create(
         status=ArcIngestionRun.Status.PENDING,
-        run_date=timezone.now().date(),
+        run_date=date.fromisoformat(run_date) if run_date else timezone.now().date(),
     )
     run_arc_pipeline.delay(run.pk)  # type: ignore[attr-defined]
-    logger.info("Queued ARC pipeline. Run ID: %s", run.pk)
+    logger.info("Queued ARC pipeline. Run ID: %s run_date=%s", run.pk, run.run_date)
 
 
 @shared_task(
