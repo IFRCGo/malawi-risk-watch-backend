@@ -1,9 +1,19 @@
+import argparse
 import typing
 
+from django.contrib.auth.hashers import identify_hasher
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
 
 from apps.users.models import User
+
+
+def _password_hash(value: str) -> str:
+    try:
+        identify_hasher(value)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError("not a valid Django password hash") from e
+    return value
 
 
 class Command(BaseCommand):
@@ -13,7 +23,12 @@ class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser):
         parser.add_argument("--name", type=str, required=True, help="Full name")
         parser.add_argument("--email", type=str, required=True, help="Email (login)")
-        parser.add_argument("--password", type=str, required=True, help="Password")
+        parser.add_argument(
+            "--password-hash",
+            type=_password_hash,
+            required=True,
+            help="Django password hash (e.g. pbkdf2_sha256$...)",
+        )
         parser.add_argument("--role", type=str, required=True, choices=User.Role.values, help="User role")
         parser.add_argument("--superuser", action="store_true", help="Set is_superuser")
         parser.add_argument("--staff", action="store_true", help="Set is_staff")
@@ -27,7 +42,7 @@ class Command(BaseCommand):
         user.is_superuser = options["superuser"]
         user.is_staff = options["staff"]
         user.is_active = True
-        user.set_password(options["password"])
+        user.password = options["password_hash"]
         user.save()
 
         action = "Created" if created else "Updated"
