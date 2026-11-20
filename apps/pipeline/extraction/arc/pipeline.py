@@ -19,8 +19,10 @@ Supporting modules (kept separate — no reason to live inside the class):
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
+from functools import cached_property
 from io import BytesIO
 from pathlib import PurePosixPath
 
@@ -72,11 +74,25 @@ class S3Config:
         arc = settings.ARC_PIPELINE
         return cls(
             bucket=arc["S3_BUCKET"],
-            prefix=arc["S3_PREFIX"],
+            prefix=_strip_year_suffix(arc["S3_PREFIX"]),
             aws_access_key_id=arc["AWS_ACCESS_KEY_ID"],
             aws_secret_access_key=arc["AWS_SECRET_ACCESS_KEY"],
             region_name=arc.get("AWS_REGION", "us-east-1"),
         )
+
+
+def _strip_year_suffix(prefix: str) -> str:
+    """Drop a trailing `/YYYY` from the configured prefix.
+
+    The year is now taken from the observation date (see `ArcPipeline.get_csv_key`), but older
+    deployments set ARC_S3_PREFIX to e.g. `malawi/2026`; keep those working instead of
+    producing `malawi/2026/2027/...`.
+    """
+    base = prefix.rstrip("/")
+    stripped = re.sub(r"/\d{4}$", "", base)
+    if stripped != base:
+        logger.warning("ARC_S3_PREFIX %r ends with a year; ignoring it and using %r.", prefix, stripped)
+    return stripped
 
 
 def _make_s3_client(cfg: S3Config):
@@ -115,11 +131,16 @@ class ArcPipeline:
 
     def __init__(self, arc_ingestion_run: ArcIngestionRun) -> None:
         self.arc_ingestion_run = arc_ingestion_run
-        self._cfg = S3Config.from_settings()
+
+    @cached_property
+    def _cfg(self) -> S3Config:
+        # Read lazily so the transform/write phases work without ARC S3 settings
+        # (e.g. the load_test_scenario command, which supplies its own CSVs).
+        return S3Config.from_settings()
 
     def get_csv_key(self, dt: date) -> str:
         s3 = _make_s3_client(self._cfg)
-        prefix = f"{self._cfg.prefix}/{dt:%m/%d}/"
+        prefix = f"{self._cfg.prefix}/{dt:%Y/%m/%d}/"
         paginator = s3.get_paginator("list_objects_v2")
 
         try:
@@ -146,7 +167,18 @@ class ArcPipeline:
         key = self.get_csv_key(dt=obs_date)
         logger.info("Starting ARC pipeline for run=%s", self.arc_ingestion_run.pk)
 
-        csv_object = self._collect(key)
+        self._ingest(self._collect(key), obs_date)
+
+    def run_from_csv(self, key: str, raw_bytes: bytes, observation_date: date) -> int:
+        """Ingest an ARC CSV that is already in hand: the same steps as :meth:`run`, minus the S3 download.
+
+        Used by the load_test_scenario command. Returns the number of observation rows written.
+        """
+        df = pl.read_csv(BytesIO(raw_bytes))
+        self._validate_columns(df, key)
+        return self._ingest(CSVObject(key=key, raw_bytes=raw_bytes, df=df), observation_date)
+
+    def _ingest(self, csv_object: CSVObject, obs_date: date) -> int:
         records = self._transform(csv_object.df, obs_date)
 
         with transaction.atomic():
@@ -154,6 +186,7 @@ class ArcPipeline:
             self._save_run_metadata(csv_object, written)
 
         logger.info("[run=%s] Completed — %d rows written.", self.arc_ingestion_run.pk, written)
+        return written
 
     def _collect(self, key: str) -> CSVObject:
         """Download *key* from S3 and return a validated :class:`CSVObject`."""

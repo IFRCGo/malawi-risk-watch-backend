@@ -118,7 +118,7 @@ env = environ.Env(
     # ARC
     ARC_INGESTION_ENABLED=(bool, False),
     ARC_S3_BUCKET=(str, "jbarisk-analytics"),
-    ARC_S3_PREFIX=(str, "malawi/2026"),
+    ARC_S3_PREFIX=(str, "malawi"),  # year/month/day are appended from the observation date
     ARC_AWS_ACCESS_KEY_ID=str,
     ARC_AWS_SECRET_ACCESS_KEY=str,
     AWS_REGION=(str, "eu-west-2"),
