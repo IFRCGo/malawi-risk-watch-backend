@@ -243,33 +243,58 @@ class JBAPipeline:
         forecast_files = []
 
         for tiff_file, match in matched:
-            forecast_target_date = datetime.strptime(match.group("forecast_target"), "%Y%m%d").date()
-            forecast_issue_date = datetime.strptime(match.group("forecast_issue"), "%Y%m%d").date()
-            remote_path = f"{path}/{tiff_file}"
-
-            logger.info(
-                "Reading raster file=%s target_date=%s issue_date=%s",
-                tiff_file,
-                forecast_target_date,
-                forecast_issue_date,
-            )
-
-            with sftp.open(remote_path) as f:
+            with sftp.open(f"{path}/{tiff_file}") as f:
                 content = f.read()
-                cog_file = convert_to_cog_bytes_from_bytes(content)
-
-            forecast_files.append(
-                FloodForecastFile(
-                    forecast_issue_date=forecast_issue_date,
-                    forecast_target_date=forecast_target_date,
-                    tiff=ContentFile(cog_file, name=tiff_file),
-                    file_size_bytes=len(cog_file),
-                    ingestion_run=self.jba_ingestion_run,
-                    original_filename=tiff_file,
-                ),
-            )
+            forecast_files.append(self._build_forecast_file(tiff_file, match, content))
 
         return forecast_files
+
+    def _build_forecast_file(self, tiff_file: str, match: re.Match[str], content: bytes) -> FloodForecastFile:
+        forecast_target_date = datetime.strptime(match.group("forecast_target"), "%Y%m%d").date()
+        forecast_issue_date = datetime.strptime(match.group("forecast_issue"), "%Y%m%d").date()
+
+        logger.info(
+            "Reading raster file=%s target_date=%s issue_date=%s",
+            tiff_file,
+            forecast_target_date,
+            forecast_issue_date,
+        )
+        cog_file = convert_to_cog_bytes_from_bytes(content)
+
+        return FloodForecastFile(
+            forecast_issue_date=forecast_issue_date,
+            forecast_target_date=forecast_target_date,
+            tiff=ContentFile(cog_file, name=tiff_file),
+            file_size_bytes=len(cog_file),
+            ingestion_run=self.jba_ingestion_run,
+            original_filename=tiff_file,
+        )
+
+    def run_from_files(self, rasters: list[tuple[str, bytes]], impacts_zip: tuple[str, bytes]) -> None:
+        """Ingest raster and impact files that are already in hand: the same steps as :meth:`run`, minus SFTP.
+
+        `rasters` are (filename, GeoTIFF bytes) pairs and `impacts_zip` is (filename, zip bytes); filenames
+        must match the same patterns as the SFTP files. Used by the load_test_scenario command.
+        """
+        forecast_files = []
+        for name, content in rasters:
+            match = self.tiff_file_pattern.match(name)
+            if not match:
+                raise ValueError(f"Raster filename {name!r} does not match {self.tiff_file_pattern.pattern!r}")
+            forecast_files.append(self._build_forecast_file(name, match, content))
+
+        zip_name, zip_bytes = impacts_zip
+        zip_match = self.csv_file_pattern.match(zip_name)
+        if not zip_match:
+            raise ValueError(f"Impact filename {zip_name!r} does not match {self.csv_file_pattern.pattern!r}")
+        issue_date = datetime.strptime(zip_match.group("issue_date"), "%Y%m%d").date()
+
+        self._csv_file = (zip_name, zip_bytes)
+        admin_areas = {aa.pcode: aa for aa in AdminArea.objects.all()}
+        forecast_file_hash_map = {f.forecast_target_date: f for f in forecast_files}
+        impacts = self._process_zip(io.BytesIO(zip_bytes), issue_date, forecast_file_hash_map, admin_areas)
+
+        self._persist(forecast_files, impacts)
 
     def _collect_all_data(self) -> tuple[list[FloodForecastFile], list[FloodForecastImpact]]:
         with self.connect_sftp_client(settings.JBA_SFTP_URL, settings.JBA_SFTP_PORT) as sftp:
@@ -317,7 +342,9 @@ class JBAPipeline:
         )
 
         forecast_files, impacts = self._collect_all_data()
+        self._persist(forecast_files, impacts)
 
+    def _persist(self, forecast_files: list[FloodForecastFile], impacts: list[FloodForecastImpact]) -> None:
         with transaction.atomic():
             self._write_all(forecast_files, impacts)
             self._save_run_metadata(forecast_files)
