@@ -6,7 +6,7 @@ from apps.admin_areas.models import AdminArea
 from apps.pipeline.resolve_geo import resolve_admin_areas
 
 
-def _square(lon: float, lat: float, half: float) -> dict:
+def _square(lon: float, lat: float, half: float) -> dict[str, object]:
     """A GeoJSON polygon square centred on (lon, lat)."""
     return {
         "type": "Polygon",
@@ -51,7 +51,7 @@ def test_resolves_to_deepest_level_only():
 
     # The point sits inside all three nested boxes, but only the deepest wins —
     # the parents must never receive their own observation.
-    assert result == {(lat, lon): [district.id]}
+    assert result == {(lat, lon): [district.pk]}
 
 
 @pytest.mark.django_db
